@@ -5,6 +5,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 using CatchCatch.Helpers;
 using CatchCatch.Models;
 
@@ -16,8 +17,11 @@ public partial class OverlayWindow : Window
     private const double BubbleMaxWidth = 200;
     private const double BubblePadding = 8;
     private const int MaxBubbles = 5;
+    private const double ParticleLifetime = 0.6; // seconds
+    private const double ParticleSize = 6;
 
     private readonly Dictionary<string, CatVisual> _catVisuals = new();
+    private readonly DispatcherTimer _particleTimer;
     private bool _clickThrough = true;
     private bool _isDragging;
     private Point _dragOffset;
@@ -30,6 +34,10 @@ public partial class OverlayWindow : Window
     {
         InitializeComponent();
         Loaded += OnLoaded;
+
+        _particleTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) }; // ~60fps
+        _particleTimer.Tick += OnParticleTick;
+        _particleTimer.Start();
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -68,7 +76,8 @@ public partial class OverlayWindow : Window
 
     public void UpdateCat(string userId, double x, double y, bool isActive, CatTheme theme,
         string name, bool isLocal, bool showName = true,
-        List<BubbleMessage>? bubbles = null, bool isChatOpen = false)
+        List<BubbleMessage>? bubbles = null, bool isChatOpen = false,
+        int comboCount = 0, List<Particle>? particles = null)
     {
         if (!_catVisuals.TryGetValue(userId, out var visual))
         {
@@ -76,6 +85,7 @@ public partial class OverlayWindow : Window
             _catVisuals[userId] = visual;
             OverlayCanvas.Children.Add(visual.Container);
             OverlayCanvas.Children.Add(visual.NameBorder);
+            OverlayCanvas.Children.Add(visual.ComboLabel);
         }
 
         // Update image
@@ -100,6 +110,25 @@ public partial class OverlayWindow : Window
         // Position name below cat
         Canvas.SetLeft(visual.NameBorder, left + (CatSize - visual.NameBorder.ActualWidth) / 2);
         Canvas.SetTop(visual.NameBorder, top + CatSize + 2 + nameOffset);
+
+        // Update combo label
+        if (comboCount > 0)
+        {
+            visual.ComboLabel.Text = $"x{comboCount}";
+            visual.ComboLabel.Foreground = new SolidColorBrush(GetComboColor(comboCount));
+            visual.ComboLabel.Visibility = Visibility.Visible;
+            Canvas.SetLeft(visual.ComboLabel, left + CatSize - 4);
+            Canvas.SetTop(visual.ComboLabel, top - 16);
+        }
+        else
+        {
+            visual.ComboLabel.Visibility = Visibility.Collapsed;
+        }
+
+        // Store particles reference and position for animation
+        visual.Particles = particles;
+        visual.CatLeft = left;
+        visual.CatTop = top;
 
         // Update bubbles
         UpdateBubbles(visual, left, top, bubbles);
@@ -166,9 +195,72 @@ public partial class OverlayWindow : Window
         if (!_catVisuals.Remove(userId, out var visual)) return;
         OverlayCanvas.Children.Remove(visual.Container);
         OverlayCanvas.Children.Remove(visual.NameBorder);
+        OverlayCanvas.Children.Remove(visual.ComboLabel);
         foreach (var b in visual.BubbleElements)
             OverlayCanvas.Children.Remove(b);
+        foreach (var e in visual.ParticleElements)
+            OverlayCanvas.Children.Remove(e);
     }
+
+    private void OnParticleTick(object? sender, EventArgs e)
+    {
+        var now = DateTime.Now;
+
+        foreach (var (_, visual) in _catVisuals)
+        {
+            // Remove old particle UI elements
+            foreach (var el in visual.ParticleElements)
+                OverlayCanvas.Children.Remove(el);
+            visual.ParticleElements.Clear();
+
+            if (visual.Particles == null || visual.Particles.Count == 0) continue;
+
+            // Remove expired particles from the source list
+            visual.Particles.RemoveAll(p => (now - p.Created).TotalSeconds > ParticleLifetime);
+
+            var centerX = visual.CatLeft + CatSize / 2;
+            var centerY = visual.CatTop + CatSize / 2;
+
+            foreach (var p in visual.Particles)
+            {
+                var age = (now - p.Created).TotalSeconds;
+                var progress = age / ParticleLifetime;
+                var opacity = 1.0 - progress;
+
+                var px = centerX + p.Dx * progress;
+                var py = centerY + p.Dy * progress;
+
+                var ellipse = new Ellipse
+                {
+                    Width = ParticleSize * (1.0 - progress * 0.5),
+                    Height = ParticleSize * (1.0 - progress * 0.5),
+                    Fill = new SolidColorBrush(GetParticleColor(p.Color)) { Opacity = opacity },
+                    IsHitTestVisible = false,
+                };
+
+                Canvas.SetLeft(ellipse, px - ellipse.Width / 2);
+                Canvas.SetTop(ellipse, py - ellipse.Height / 2);
+                OverlayCanvas.Children.Add(ellipse);
+                visual.ParticleElements.Add(ellipse);
+            }
+        }
+    }
+
+    private static Color GetComboColor(int combo) => combo switch
+    {
+        >= 50 => Colors.Red,
+        >= 25 => Colors.Orange,
+        >= 10 => Colors.Yellow,
+        _ => Colors.White,
+    };
+
+    private static Color GetParticleColor(string color) => color switch
+    {
+        "Red" => Colors.Red,
+        "Orange" => Colors.Orange,
+        "Yellow" => Colors.Yellow,
+        _ => Colors.White,
+    };
 
     public void EnableDrag(bool enable)
     {
@@ -239,7 +331,12 @@ public partial class OverlayWindow : Window
         public string? CurrentImagePath { get; set; }
         public TextBlock NameLabel { get; }
         public Border NameBorder { get; }
+        public TextBlock ComboLabel { get; }
         public List<UIElement> BubbleElements { get; } = new();
+        public List<UIElement> ParticleElements { get; } = new();
+        public List<Particle>? Particles { get; set; }
+        public double CatLeft { get; set; }
+        public double CatTop { get; set; }
         public bool DragSetup { get; set; }
 
         public CatVisual()
@@ -265,6 +362,15 @@ public partial class OverlayWindow : Window
                 CornerRadius = new CornerRadius(6),
                 Padding = new Thickness(6, 2, 6, 2),
                 Child = NameLabel,
+            };
+
+            ComboLabel = new TextBlock
+            {
+                FontSize = 14,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                Visibility = Visibility.Collapsed,
+                IsHitTestVisible = false,
             };
         }
     }

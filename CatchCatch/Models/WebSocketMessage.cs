@@ -34,6 +34,9 @@ public class WsMessage
     [JsonPropertyName("message")]
     public string? Message { get; set; }
 
+    [JsonPropertyName("combo")]
+    public int? Combo { get; set; }
+
     [JsonPropertyName("users")]
     public List<WsMessage>? Users { get; set; }
 }

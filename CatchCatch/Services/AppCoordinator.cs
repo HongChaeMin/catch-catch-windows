@@ -44,6 +44,7 @@ public sealed class AppCoordinator : IDisposable
             ShowName = Settings.Default.ShowName,
             SyncPosition = Settings.Default.SyncPosition,
             KeystrokeCount = LoadKeystrokeCount(),
+            PowerMode = Settings.Default.PowerMode,
         };
     }
 
@@ -160,6 +161,24 @@ public sealed class AppCoordinator : IDisposable
             Settings.Default.Save();
         };
 
+        // Power mode toggle
+        var powerModeItem = new System.Windows.Controls.MenuItem
+        {
+            Header = "Power Mode", IsCheckable = true, IsChecked = _localCat.PowerMode,
+        };
+        powerModeItem.Click += (_, _) =>
+        {
+            _localCat.PowerMode = powerModeItem.IsChecked;
+            Settings.Default.PowerMode = powerModeItem.IsChecked;
+            Settings.Default.Save();
+            if (!_localCat.PowerMode)
+            {
+                _localCat.ComboCount = 0;
+                _localCat.Particles.Clear();
+                RefreshOverlays();
+            }
+        };
+
         // Move toggle
         var moveItem = new System.Windows.Controls.MenuItem { Header = "Move Cat", IsCheckable = true };
         moveItem.Click += (_, _) => ToggleMoveMode(moveItem.IsChecked);
@@ -215,6 +234,7 @@ public sealed class AppCoordinator : IDisposable
         menu.Items.Add(new System.Windows.Controls.Separator());
         menu.Items.Add(showNameItem);
         menu.Items.Add(syncPosItem);
+        menu.Items.Add(powerModeItem);
         menu.Items.Add(moveItem);
         menu.Items.Add(chatItem);
         menu.Items.Add(new System.Windows.Controls.Separator());
@@ -247,6 +267,7 @@ public sealed class AppCoordinator : IDisposable
         {
             _lastActivity = DateTime.Now;
             _localCat.IncrementKeystroke();
+            _localCat.BumpCombo();
             if (!_localCat.IsActive)
             {
                 _localCat.IsActive = true;
@@ -344,6 +365,15 @@ public sealed class AppCoordinator : IDisposable
                     }
                     // active 상태는 항상 반영
                     if (msg.Active.HasValue) peer2.IsActive = msg.Active.Value;
+                    // combo
+                    if (msg.Combo.HasValue)
+                    {
+                        var prevCombo = peer2.ComboCount;
+                        peer2.ComboCount = msg.Combo.Value;
+                        // Spawn peer particles when combo increases
+                        if (msg.Combo.Value > prevCombo)
+                            peer2.SpawnParticles();
+                    }
                     RefreshOverlays();
                 }
                 break;
@@ -434,7 +464,8 @@ public sealed class AppCoordinator : IDisposable
                     _localCat.UserId, _localCat.AbsX, _localCat.AbsY,
                     _localCat.IsActive, _localCat.Theme,
                     _localCat.Name, isLocal: true, showName: _localCat.ShowName,
-                    bubbles: localBubbles, isChatOpen: _localCat.IsChatOpen);
+                    bubbles: localBubbles, isChatOpen: _localCat.IsChatOpen,
+                    comboCount: _localCat.ComboCount, particles: _localCat.Particles);
             }
 
             // Peer cats on all screens
@@ -447,7 +478,8 @@ public sealed class AppCoordinator : IDisposable
                     peer.UserId, peer.AbsX, peer.AbsY,
                     peer.IsActive, peer.Theme,
                     peer.Name, isLocal: false,
-                    bubbles: peerBubbles);
+                    bubbles: peerBubbles,
+                    comboCount: peer.ComboCount, particles: peer.Particles);
             }
         }
     }
@@ -467,6 +499,7 @@ public sealed class AppCoordinator : IDisposable
             X = Math.Clamp(normX, 0, 1),
             Y = Math.Clamp(normY, 0, 1),
             Active = _localCat.IsActive,
+            Combo = _localCat.PowerMode ? _localCat.ComboCount : null,
         });
     }
 

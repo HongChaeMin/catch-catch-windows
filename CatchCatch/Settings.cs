@@ -73,4 +73,12 @@ internal sealed class Settings : ApplicationSettingsBase
         get => (string)this[nameof(KeystrokeDate)];
         set => this[nameof(KeystrokeDate)] = value;
     }
+
+    [UserScopedSetting]
+    [DefaultSettingValue("True")]
+    public bool PowerMode
+    {
+        get => (bool)this[nameof(PowerMode)];
+        set => this[nameof(PowerMode)] = value;
+    }
 }
