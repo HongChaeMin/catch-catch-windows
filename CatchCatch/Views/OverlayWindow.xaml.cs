@@ -240,9 +240,8 @@ public partial class OverlayWindow : Window
             {
                 Width = CatSize,
                 Height = CatSize,
-                RenderOptions = { },
             };
-            RenderOptions.SetBitmapScalingMode(CatImage, BitmapScalingMode.NearestNeighbor);
+            System.Windows.Media.RenderOptions.SetBitmapScalingMode(CatImage, BitmapScalingMode.NearestNeighbor);
             Container.Children.Add(CatImage);
 
             NameLabel = new TextBlock
