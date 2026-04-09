@@ -6,10 +6,11 @@ namespace CatchCatch.Models;
 
 public class Particle
 {
-    public double Dx { get; set; }
-    public double Dy { get; set; }
+    public double StartX { get; set; }  // 시작 x 오프셋
+    public double Dx { get; set; }      // 수평 드리프트
+    public double Dy { get; set; }      // 수직 이동 (음수=위)
     public DateTime Created { get; set; } = DateTime.Now;
-    public string Color { get; set; } = "White";
+    public string Color { get; set; } = "Cyan";
 }
 
 public class CatState : INotifyPropertyChanged
@@ -99,13 +100,27 @@ public class CatState : INotifyPropertyChanged
 
     public List<Particle> Particles { get; } = new();
 
+    private static readonly string[][] ColorPools =
+    {
+        new[] { "Cyan", "Blue", "White" },      // 0-9
+        new[] { "Green", "Cyan", "Yellow" },     // 10-24
+        new[] { "Yellow", "Orange", "Pink" },    // 25-49
+        new[] { "Red", "Orange", "Pink" },       // 50+
+    };
+
     public string ComboColor => ComboCount switch
     {
         >= 50 => "Red",
         >= 25 => "Orange",
-        >= 10 => "Yellow",
-        _ => "White",
+        >= 10 => "Green",
+        _ => "Cyan",
     };
+
+    private static string RandomColorForTier(int combo)
+    {
+        var pool = combo >= 50 ? ColorPools[3] : combo >= 25 ? ColorPools[2] : combo >= 10 ? ColorPools[1] : ColorPools[0];
+        return pool[Rng.Next(pool.Length)];
+    }
 
     public void IncrementKeystroke()
     {
@@ -118,7 +133,6 @@ public class CatState : INotifyPropertyChanged
 
         ComboCount++;
 
-        // Reset timer
         if (_comboResetTimer == null)
         {
             _comboResetTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
@@ -132,21 +146,20 @@ public class CatState : INotifyPropertyChanged
         _comboResetTimer.Stop();
         _comboResetTimer.Start();
 
-        // Spawn particles
         SpawnParticles();
     }
 
     public void SpawnParticles()
     {
-        var color = ComboColor;
-        var count = ComboCount >= 50 ? 5 : ComboCount >= 25 ? 4 : ComboCount >= 10 ? 3 : 2;
+        var count = Math.Min(3 + ComboCount / 10, 8);
         for (var i = 0; i < count; i++)
         {
             Particles.Add(new Particle
             {
-                Dx = Rng.NextDouble() * 60 - 30,
-                Dy = Rng.NextDouble() * -30 - 10,
-                Color = color,
+                StartX = Rng.NextDouble() * 60 - 30,
+                Dx = Rng.NextDouble() * 30 - 15,
+                Dy = Rng.NextDouble() * -35 - 15,
+                Color = RandomColorForTier(ComboCount),
             });
         }
     }

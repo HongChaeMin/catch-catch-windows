@@ -17,8 +17,8 @@ public partial class OverlayWindow : Window
     private const double BubbleMaxWidth = 200;
     private const double BubblePadding = 8;
     private const int MaxBubbles = 5;
-    private const double ParticleLifetime = 0.6; // seconds
-    private const double ParticleSize = 6;
+    private const double ParticleLifetime = 0.8; // seconds
+    private const double ParticleSize = 7;
 
     private readonly Dictionary<string, CatVisual> _catVisuals = new();
     private readonly DispatcherTimer _particleTimer;
@@ -222,29 +222,42 @@ public partial class OverlayWindow : Window
             visual.Particles.RemoveAll(p => (now - p.Created).TotalSeconds > ParticleLifetime);
 
             var centerX = visual.CatLeft + CatSize / 2;
-            var centerY = visual.CatTop + CatSize / 2;
+            var bottomY = visual.CatTop + CatSize * 0.75;  // 고양이 하단 근처
 
             foreach (var p in visual.Particles)
             {
                 var age = (now - p.Created).TotalSeconds;
                 var progress = age / ParticleLifetime;
-                var opacity = 1.0 - progress;
+                var opacity = 1.0 - progress * progress;  // 부드러운 페이드
+                var size = ParticleSize * (1.0 - progress * 0.4);
 
-                var px = centerX + p.Dx * progress;
-                var py = centerY + p.Dy * progress;
+                var px = centerX + p.StartX + p.Dx * progress;
+                var py = bottomY + p.Dy * progress;
+                var color = GetParticleColor(p.Color);
 
-                var ellipse = new Ellipse
+                // 글로우 (큰 원)
+                var glow = new Ellipse
                 {
-                    Width = ParticleSize * (1.0 - progress * 0.5),
-                    Height = ParticleSize * (1.0 - progress * 0.5),
-                    Fill = new SolidColorBrush(GetParticleColor(p.Color)) { Opacity = opacity },
+                    Width = size * 2.5, Height = size * 2.5,
+                    Fill = new SolidColorBrush(color) { Opacity = opacity * 0.35 },
                     IsHitTestVisible = false,
                 };
+                Canvas.SetLeft(glow, px - glow.Width / 2);
+                Canvas.SetTop(glow, py - glow.Height / 2);
+                OverlayCanvas.Children.Add(glow);
+                visual.ParticleElements.Add(glow);
 
-                Canvas.SetLeft(ellipse, px - ellipse.Width / 2);
-                Canvas.SetTop(ellipse, py - ellipse.Height / 2);
-                OverlayCanvas.Children.Add(ellipse);
-                visual.ParticleElements.Add(ellipse);
+                // 코어 (작은 원)
+                var core = new Ellipse
+                {
+                    Width = size, Height = size,
+                    Fill = new SolidColorBrush(color) { Opacity = opacity },
+                    IsHitTestVisible = false,
+                };
+                Canvas.SetLeft(core, px - core.Width / 2);
+                Canvas.SetTop(core, py - core.Height / 2);
+                OverlayCanvas.Children.Add(core);
+                visual.ParticleElements.Add(core);
             }
         }
     }
@@ -253,15 +266,19 @@ public partial class OverlayWindow : Window
     {
         >= 50 => Colors.Red,
         >= 25 => Colors.Orange,
-        >= 10 => Colors.Yellow,
-        _ => Colors.White,
+        >= 10 => Color.FromRgb(77, 255, 128),  // green
+        _ => Color.FromRgb(77, 230, 255),       // cyan
     };
 
     private static Color GetParticleColor(string color) => color switch
     {
-        "Red" => Colors.Red,
-        "Orange" => Colors.Orange,
-        "Yellow" => Colors.Yellow,
+        "Red" => Color.FromRgb(255, 50, 50),
+        "Orange" => Color.FromRgb(255, 153, 50),
+        "Yellow" => Color.FromRgb(255, 242, 77),
+        "Green" => Color.FromRgb(77, 255, 128),
+        "Cyan" => Color.FromRgb(77, 230, 255),
+        "Blue" => Color.FromRgb(102, 153, 255),
+        "Pink" => Color.FromRgb(255, 77, 179),
         _ => Colors.White,
     };
 
