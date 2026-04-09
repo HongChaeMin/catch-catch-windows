@@ -277,19 +277,8 @@ public sealed class AppCoordinator : IDisposable
             _lastActivity = DateTime.Now;
             _localCat.IncrementKeystroke();
             _localCat.BumpCombo();
-            if (!_localCat.IsActive)
-            {
-                _localCat.IsActive = true;
-                Application.Current.Dispatcher.Invoke(RefreshOverlays);
-            }
-        };
-        _inputMonitor.OnAllKeysReleased += () =>
-        {
-            if (_localCat.IsActive)
-            {
-                _localCat.IsActive = false;
-                Application.Current.Dispatcher.Invoke(RefreshOverlays);
-            }
+            _localCat.IsActive = !_localCat.IsActive;
+            Application.Current.Dispatcher.Invoke(RefreshOverlays);
         };
         _inputMonitor.Install();
     }
