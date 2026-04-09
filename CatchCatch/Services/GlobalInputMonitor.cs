@@ -54,8 +54,8 @@ public sealed class GlobalInputMonitor : IDisposable
                 int msg = wParam.ToInt32();
                 if (msg == NativeMethods.WM_KEYDOWN || msg == NativeMethods.WM_SYSKEYDOWN)
                 {
-                    if (_pressedKeys.Add(kb.vkCode))
-                        OnActivity?.Invoke();
+                    _pressedKeys.Add(kb.vkCode);
+                    OnActivity?.Invoke();  // 반복 키도 포함 → 팔 파닥파닥
                 }
                 else if (msg == NativeMethods.WM_KEYUP || msg == NativeMethods.WM_SYSKEYUP)
                 {

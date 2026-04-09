@@ -277,11 +277,9 @@ public sealed class AppCoordinator : IDisposable
             _lastActivity = DateTime.Now;
             _localCat.IncrementKeystroke();
             _localCat.BumpCombo();
-            if (!_localCat.IsActive)
-            {
-                _localCat.IsActive = true;
-                Application.Current.Dispatcher.Invoke(RefreshOverlays);
-            }
+            // 매 키입력마다 토글 → 팔 파닥파닥 (macOS와 동일)
+            _localCat.IsActive = !_localCat.IsActive;
+            Application.Current.Dispatcher.Invoke(RefreshOverlays);
         };
         _inputMonitor.Install();
     }
@@ -458,13 +456,14 @@ public sealed class AppCoordinator : IDisposable
 
     private void RefreshOverlays()
     {
-        var primaryScreen = System.Windows.Forms.Screen.PrimaryScreen!;
+        // 로컬 고양이가 위치한 화면 찾기
+        var catPoint = new System.Drawing.Point((int)_localCat.AbsX, (int)_localCat.AbsY);
+        var catScreen = System.Windows.Forms.Screen.FromPoint(catPoint);
 
         foreach (var overlay in _overlayWindows)
         {
-            // Local cat (only on primary screen overlay)
             var screen = GetOverlayScreen(overlay);
-            if (screen?.DeviceName == primaryScreen.DeviceName)
+            if (screen?.DeviceName == catScreen.DeviceName)
             {
                 var localBubbles = _activeBubbles.GetValueOrDefault(_localCat.UserId)?
                     .Select(x => x.Msg).ToList();
@@ -475,6 +474,11 @@ public sealed class AppCoordinator : IDisposable
                     _localCat.Name, isLocal: true, showName: _localCat.ShowName,
                     bubbles: localBubbles, isChatOpen: _localCat.IsChatOpen,
                     comboCount: _localCat.ComboCount, particles: _localCat.Particles);
+            }
+            else
+            {
+                // 다른 화면에서는 로컬 고양이 제거
+                overlay.RemoveCat(_localCat.UserId);
             }
 
             // Peer cats on all screens
@@ -657,10 +661,11 @@ public sealed class AppCoordinator : IDisposable
 
     private static (double x, double y) ClampToScreen(double x, double y)
     {
-        var screen = System.Windows.Forms.Screen.PrimaryScreen!;
-        const double margin = 40; // half cat size
-        var clampedX = Math.Clamp(x, screen.Bounds.Left + margin, screen.Bounds.Right - margin);
-        var clampedY = Math.Clamp(y, screen.Bounds.Top + margin, screen.Bounds.Bottom - margin);
+        // 전체 가상 스크린 (모든 모니터 합친 영역)
+        var vs = System.Windows.Forms.SystemInformation.VirtualScreen;
+        const double margin = 40;
+        var clampedX = Math.Clamp(x, vs.Left + margin, vs.Right - margin);
+        var clampedY = Math.Clamp(y, vs.Top + margin, vs.Bottom - margin);
         return (clampedX, clampedY);
     }
 
