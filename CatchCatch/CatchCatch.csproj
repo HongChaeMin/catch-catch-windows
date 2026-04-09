@@ -5,6 +5,8 @@
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
     <AssemblyName>CatchCatch</AssemblyName>
     <RootNamespace>CatchCatch</RootNamespace>
     <Version>0.0.3</Version>
