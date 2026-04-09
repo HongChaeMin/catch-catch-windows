@@ -123,8 +123,8 @@ public partial class OverlayWindow : Window
         if (isSleeping)
         {
             visual.SleepLabel.Visibility = Visibility.Visible;
-            Canvas.SetLeft(visual.SleepLabel, left - 16);
-            Canvas.SetTop(visual.SleepLabel, top - 24);
+            Canvas.SetLeft(visual.SleepLabel, left + CatSize / 2);
+            Canvas.SetTop(visual.SleepLabel, top - 22);
         }
         else
         {
