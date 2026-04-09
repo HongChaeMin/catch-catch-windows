@@ -57,4 +57,20 @@ internal sealed class Settings : ApplicationSettingsBase
         get => (bool)this[nameof(SyncPosition)];
         set => this[nameof(SyncPosition)] = value;
     }
+
+    [UserScopedSetting]
+    [DefaultSettingValue("0")]
+    public int KeystrokeCount
+    {
+        get => (int)this[nameof(KeystrokeCount)];
+        set => this[nameof(KeystrokeCount)] = value;
+    }
+
+    [UserScopedSetting]
+    [DefaultSettingValue("")]
+    public string KeystrokeDate
+    {
+        get => (string)this[nameof(KeystrokeDate)];
+        set => this[nameof(KeystrokeDate)] = value;
+    }
 }

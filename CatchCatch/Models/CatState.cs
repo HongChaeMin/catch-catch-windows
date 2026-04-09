@@ -13,6 +13,7 @@ public class CatState : INotifyPropertyChanged
     private bool _isChatOpen;
     private bool _showName = true;
     private bool _syncPosition = true;
+    private int _keystrokeCount;
 
     public string UserId { get; }
 
@@ -62,6 +63,17 @@ public class CatState : INotifyPropertyChanged
     {
         get => _syncPosition;
         set => SetField(ref _syncPosition, value);
+    }
+
+    public int KeystrokeCount
+    {
+        get => _keystrokeCount;
+        set => SetField(ref _keystrokeCount, value);
+    }
+
+    public void IncrementKeystroke()
+    {
+        KeystrokeCount++;
     }
 
     public CatState(string userId)

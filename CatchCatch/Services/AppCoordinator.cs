@@ -24,6 +24,7 @@ public sealed class AppCoordinator : IDisposable
     private DateTime _lastActivity = DateTime.MinValue;
     private bool _moveMode;
     private bool _disposed;
+    private System.Windows.Controls.MenuItem? _keystrokeMenuItem;
 
     // Bubble timers: userId -> list of (message, timer)
     private readonly Dictionary<string, List<(BubbleMessage Msg, DispatcherTimer Timer)>> _activeBubbles = new();
@@ -38,6 +39,7 @@ public sealed class AppCoordinator : IDisposable
             AbsY = Settings.Default.CatY > 0 ? Settings.Default.CatY : GetDefaultY(),
             ShowName = Settings.Default.ShowName,
             SyncPosition = Settings.Default.SyncPosition,
+            KeystrokeCount = LoadKeystrokeCount(),
         };
     }
 
@@ -84,9 +86,26 @@ public sealed class AppCoordinator : IDisposable
         {
             ToolTipText = "catch-catch",
             Icon = LoadAppIcon(),
+            MenuActivation = Hardcodet.Wpf.TaskbarNotification.PopupActivationMode.RightClick,
+        };
+
+        // 좌클릭으로도 컨텍스트 메뉴 열기
+        _trayIcon.TrayLeftMouseUp += (_, _) =>
+        {
+            if (_trayIcon.ContextMenu != null)
+            {
+                _trayIcon.ContextMenu.IsOpen = true;
+            }
         };
 
         var menu = new System.Windows.Controls.ContextMenu();
+
+        // Keystroke count
+        _keystrokeMenuItem = new System.Windows.Controls.MenuItem
+        {
+            Header = $"Today: {_localCat.KeystrokeCount:N0} keystrokes",
+            IsEnabled = false,
+        };
 
         // Name
         var nameItem = new System.Windows.Controls.MenuItem { Header = $"Name: {_localCat.Name}", IsEnabled = false };
@@ -181,6 +200,8 @@ public sealed class AppCoordinator : IDisposable
             Application.Current.Shutdown();
         };
 
+        menu.Items.Add(_keystrokeMenuItem);
+        menu.Items.Add(new System.Windows.Controls.Separator());
         menu.Items.Add(nameItem);
         menu.Items.Add(renameItem);
         menu.Items.Add(new System.Windows.Controls.Separator());
@@ -219,6 +240,7 @@ public sealed class AppCoordinator : IDisposable
         _inputMonitor.OnActivity += () =>
         {
             _lastActivity = DateTime.Now;
+            _localCat.IncrementKeystroke();
             if (!_localCat.IsActive)
             {
                 _localCat.IsActive = true;
@@ -242,6 +264,7 @@ public sealed class AppCoordinator : IDisposable
             if (_localCat.IsActive && (DateTime.Now - _lastActivity).TotalMilliseconds > 300)
             {
                 _localCat.IsActive = false;
+                SaveKeystrokeCount();
                 RefreshOverlays();
             }
         };
@@ -308,8 +331,12 @@ public sealed class AppCoordinator : IDisposable
                 var peer2 = _room.Peers.FirstOrDefault(p => p.UserId == msg.UserId);
                 if (peer2 != null)
                 {
-                    if (msg.X.HasValue) peer2.AbsX = NormToAbsX(msg.X.Value);
-                    if (msg.Y.HasValue) peer2.AbsY = NormToAbsY(msg.Y.Value);
+                    if (_localCat.SyncPosition)
+                    {
+                        if (msg.X.HasValue) peer2.AbsX = NormToAbsX(msg.X.Value);
+                        if (msg.Y.HasValue) peer2.AbsY = NormToAbsY(msg.Y.Value);
+                    }
+                    // active 상태는 항상 반영
                     if (msg.Active.HasValue) peer2.IsActive = msg.Active.Value;
                     RefreshOverlays();
                 }
@@ -425,7 +452,8 @@ public sealed class AppCoordinator : IDisposable
 
         var screen = System.Windows.Forms.Screen.PrimaryScreen!;
         var normX = (_localCat.AbsX - screen.Bounds.Left) / screen.Bounds.Width;
-        var normY = (_localCat.AbsY - screen.Bounds.Top) / screen.Bounds.Height;
+        // Y flip: macOS sends 1.0-y (Y-up system), Windows must match
+        var normY = 1.0 - (_localCat.AbsY - screen.Bounds.Top) / screen.Bounds.Height;
 
         await _wsClient.SendAsync(new WsMessage
         {
@@ -445,7 +473,8 @@ public sealed class AppCoordinator : IDisposable
     private double NormToAbsY(double norm)
     {
         var screen = System.Windows.Forms.Screen.PrimaryScreen!;
-        return screen.Bounds.Top + norm * screen.Bounds.Height;
+        // Y flip: server coordinates use macOS convention (1.0-y)
+        return screen.Bounds.Top + (1.0 - norm) * screen.Bounds.Height;
     }
 
     private void ToggleMoveMode(bool enable)
@@ -593,6 +622,28 @@ public sealed class AppCoordinator : IDisposable
         return System.Windows.Forms.Screen.FromPoint(
             new System.Drawing.Point((int)(overlay.Left + overlay.Width / 2),
                                      (int)(overlay.Top + overlay.Height / 2)));
+    }
+
+    private static int LoadKeystrokeCount()
+    {
+        var today = DateTime.Now.ToString("yyyy-MM-dd");
+        if (Settings.Default.KeystrokeDate != today)
+        {
+            Settings.Default.KeystrokeCount = 0;
+            Settings.Default.KeystrokeDate = today;
+            Settings.Default.Save();
+            return 0;
+        }
+        return Settings.Default.KeystrokeCount;
+    }
+
+    private void SaveKeystrokeCount()
+    {
+        Settings.Default.KeystrokeCount = _localCat.KeystrokeCount;
+        Settings.Default.KeystrokeDate = DateTime.Now.ToString("yyyy-MM-dd");
+        Settings.Default.Save();
+        if (_keystrokeMenuItem != null)
+            _keystrokeMenuItem.Header = $"Today: {_localCat.KeystrokeCount:N0} keystrokes";
     }
 
     private static System.Drawing.Icon LoadAppIcon()
