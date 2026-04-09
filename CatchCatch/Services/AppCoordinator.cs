@@ -81,6 +81,15 @@ public sealed class AppCoordinator : IDisposable
                 SavePosition();
                 RefreshOverlays();
             };
+            overlay.OnPeerDragged = (userId, x, y) =>
+            {
+                var peer = _room.Peers.FirstOrDefault(p => p.UserId == userId);
+                if (peer == null) return;
+                var screen2 = System.Windows.Forms.Screen.PrimaryScreen!;
+                peer.AbsX = Math.Clamp(x, screen2.Bounds.Left + 40, screen2.Bounds.Right - 40);
+                peer.AbsY = Math.Clamp(y, screen2.Bounds.Top + 40, screen2.Bounds.Bottom - 40);
+            };
+            overlay.OnPeerDragEnd = _ => { };
             _overlayWindows.Add(overlay);
         }
 
