@@ -15,21 +15,34 @@ public partial class ChatWindow : Window
 
     public void ShowNear(double catX, double catY, double catSize)
     {
-        // Position below cat + name label
-        Left = catX + (catSize - Width) / 2;
-        Top = catY + catSize + 24;
+        // catX/catY are physical pixels; WPF Left/Top are DIPs
+        var source = PresentationSource.FromVisual(this)
+                     ?? PresentationSource.FromVisual(Application.Current.MainWindow!);
+        var dpiX = source?.CompositionTarget?.TransformFromDevice.M11 ?? 1.0;
+        var dpiY = source?.CompositionTarget?.TransformFromDevice.M22 ?? 1.0;
 
-        // Clamp to screen bounds
+        var dipCatX = catX * dpiX;
+        var dipCatY = catY * dpiY;
+        var dipCatSize = catSize * dpiX;
+
+        // Position below cat + name label (small gap)
+        Left = dipCatX + (dipCatSize - Width) / 2;
+        Top = dipCatY + dipCatSize + 4;
+
+        // Clamp to screen bounds (convert to DIPs)
         var screen = System.Windows.Forms.Screen.FromPoint(
             new System.Drawing.Point((int)catX, (int)catY));
         var bounds = screen.WorkingArea;
+        var bLeft = bounds.Left * dpiX;
+        var bRight = bounds.Right * dpiX;
+        var bBottom = bounds.Bottom * dpiY;
 
-        if (Left + Width > bounds.Right)
-            Left = bounds.Right - Width;
-        if (Left < bounds.Left)
-            Left = bounds.Left;
-        if (Top + Height > bounds.Bottom)
-            Top = catY - Height - 4; // above cat if no room below
+        if (Left + Width > bRight)
+            Left = bRight - Width;
+        if (Left < bLeft)
+            Left = bLeft;
+        if (Top + Height > bBottom)
+            Top = dipCatY - Height - 4; // above cat if no room below
 
         Show();
         ChatInput.Focus();

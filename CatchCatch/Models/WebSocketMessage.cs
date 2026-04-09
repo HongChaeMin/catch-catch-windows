@@ -37,6 +37,9 @@ public class WsMessage
     [JsonPropertyName("combo")]
     public int? Combo { get; set; }
 
+    [JsonPropertyName("sleeping")]
+    public bool? Sleeping { get; set; }
+
     [JsonPropertyName("users")]
     public List<WsMessage>? Users { get; set; }
 }

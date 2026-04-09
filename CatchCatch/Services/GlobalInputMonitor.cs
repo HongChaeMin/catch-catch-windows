@@ -15,6 +15,7 @@ public sealed class GlobalInputMonitor : IDisposable
 
     public event Action? OnActivity;
     public event Action? OnAllKeysReleased;
+    public event Action<int, int>? OnLeftClick;
 
     public GlobalInputMonitor()
     {
@@ -76,6 +77,12 @@ public sealed class GlobalInputMonitor : IDisposable
             if (msg is NativeMethods.WM_LBUTTONDOWN or NativeMethods.WM_RBUTTONDOWN)
             {
                 OnActivity?.Invoke();
+            }
+
+            if (msg is NativeMethods.WM_LBUTTONUP)
+            {
+                var ms = Marshal.PtrToStructure<NativeMethods.MSLLHOOKSTRUCT>(lParam);
+                OnLeftClick?.Invoke(ms.pt.x, ms.pt.y);
             }
         }
 

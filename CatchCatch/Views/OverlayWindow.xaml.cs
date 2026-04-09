@@ -80,7 +80,8 @@ public partial class OverlayWindow : Window
     public void UpdateCat(string userId, double x, double y, bool isActive, CatTheme theme,
         string name, bool isLocal, bool showName = true,
         List<BubbleMessage>? bubbles = null, bool isChatOpen = false,
-        int comboCount = 0, List<Particle>? particles = null)
+        int comboCount = 0, List<Particle>? particles = null,
+        bool isSleeping = false)
     {
         if (!_catVisuals.TryGetValue(userId, out var visual))
         {
@@ -89,6 +90,7 @@ public partial class OverlayWindow : Window
             OverlayCanvas.Children.Add(visual.Container);
             OverlayCanvas.Children.Add(visual.NameBorder);
             OverlayCanvas.Children.Add(visual.ComboLabel);
+            OverlayCanvas.Children.Add(visual.SleepLabel);
         }
 
         // Update image
@@ -126,6 +128,18 @@ public partial class OverlayWindow : Window
         else
         {
             visual.ComboLabel.Visibility = Visibility.Collapsed;
+        }
+
+        // Update sleep indicator
+        if (isSleeping)
+        {
+            visual.SleepLabel.Visibility = Visibility.Visible;
+            Canvas.SetLeft(visual.SleepLabel, left - 16);
+            Canvas.SetTop(visual.SleepLabel, top - 24);
+        }
+        else
+        {
+            visual.SleepLabel.Visibility = Visibility.Collapsed;
         }
 
         // Store particles reference and position for animation
@@ -199,6 +213,7 @@ public partial class OverlayWindow : Window
         OverlayCanvas.Children.Remove(visual.Container);
         OverlayCanvas.Children.Remove(visual.NameBorder);
         OverlayCanvas.Children.Remove(visual.ComboLabel);
+        OverlayCanvas.Children.Remove(visual.SleepLabel);
         foreach (var b in visual.BubbleElements)
             OverlayCanvas.Children.Remove(b);
         foreach (var e in visual.ParticleElements)
@@ -209,8 +224,14 @@ public partial class OverlayWindow : Window
     {
         var now = DateTime.Now;
 
+        // Sleep label pulse: 0.4 ~ 1.0 over 1.5s cycle
+        var sleepPhase = now.TimeOfDay.TotalSeconds % 1.5 / 1.5; // 0..1
+        var sleepOpacity = 0.4 + 0.6 * (0.5 + 0.5 * Math.Sin(sleepPhase * 2 * Math.PI));
+
         foreach (var (_, visual) in _catVisuals)
         {
+            if (visual.SleepLabel.Visibility == Visibility.Visible)
+                visual.SleepLabel.Opacity = sleepOpacity;
             // Remove old particle UI elements
             foreach (var el in visual.ParticleElements)
                 OverlayCanvas.Children.Remove(el);
@@ -373,6 +394,7 @@ public partial class OverlayWindow : Window
         public TextBlock NameLabel { get; }
         public Border NameBorder { get; }
         public TextBlock ComboLabel { get; }
+        public TextBlock SleepLabel { get; }
         public List<UIElement> BubbleElements { get; } = new();
         public List<UIElement> ParticleElements { get; } = new();
         public List<Particle>? Particles { get; set; }
@@ -410,6 +432,14 @@ public partial class OverlayWindow : Window
                 FontSize = 14,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White,
+                Visibility = Visibility.Collapsed,
+                IsHitTestVisible = false,
+            };
+
+            SleepLabel = new TextBlock
+            {
+                Text = "\U0001F4A4",
+                FontSize = 18,
                 Visibility = Visibility.Collapsed,
                 IsHitTestVisible = false,
             };

@@ -5,6 +5,7 @@ public enum CatTheme
     Cat,
     Cat2,
     Cat3,
+    Cat4,
 }
 
 public static class CatThemeExtensions
@@ -14,6 +15,7 @@ public static class CatThemeExtensions
         CatTheme.Cat => "cat",
         CatTheme.Cat2 => "cat2",
         CatTheme.Cat3 => "cat3",
+        CatTheme.Cat4 => "cat4",
         _ => "cat",
     };
 
@@ -21,6 +23,7 @@ public static class CatThemeExtensions
     {
         "cat2" => CatTheme.Cat2,
         "cat3" => CatTheme.Cat3,
+        "cat4" => CatTheme.Cat4,
         _ => CatTheme.Cat,
     };
 
@@ -29,6 +32,7 @@ public static class CatThemeExtensions
         CatTheme.Cat => "pack://application:,,,/Assets/cat_idle.png",
         CatTheme.Cat2 => "pack://application:,,,/Assets/cat2_idle.png",
         CatTheme.Cat3 => "pack://application:,,,/Assets/cat3_idle.png",
+        CatTheme.Cat4 => "pack://application:,,,/Assets/cat4_idle.png",
         _ => "pack://application:,,,/Assets/cat_idle.png",
     };
 
@@ -37,6 +41,7 @@ public static class CatThemeExtensions
         CatTheme.Cat => "pack://application:,,,/Assets/cat_active.png",
         CatTheme.Cat2 => "pack://application:,,,/Assets/cat2_active.png",
         CatTheme.Cat3 => "pack://application:,,,/Assets/cat3_active.png",
+        CatTheme.Cat4 => "pack://application:,,,/Assets/cat4_active.png",
         _ => "pack://application:,,,/Assets/cat_active.png",
     };
 
@@ -45,6 +50,7 @@ public static class CatThemeExtensions
         CatTheme.Cat => "Gray Cat",
         CatTheme.Cat2 => "White Cat",
         CatTheme.Cat3 => "Calico Cat",
+        CatTheme.Cat4 => "Calico Cat 2",
         _ => "Gray Cat",
     };
 }

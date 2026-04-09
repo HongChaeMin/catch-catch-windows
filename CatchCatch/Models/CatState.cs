@@ -28,6 +28,7 @@ public class CatState : INotifyPropertyChanged
     private int _keystrokeCount;
     private int _comboCount;
     private bool _powerMode = true;
+    private bool _isSleeping;
     private DispatcherTimer? _comboResetTimer;
 
     public string UserId { get; }
@@ -96,6 +97,12 @@ public class CatState : INotifyPropertyChanged
     {
         get => _powerMode;
         set => SetField(ref _powerMode, value);
+    }
+
+    public bool IsSleeping
+    {
+        get => _isSleeping;
+        set => SetField(ref _isSleeping, value);
     }
 
     public List<Particle> Particles { get; } = new();

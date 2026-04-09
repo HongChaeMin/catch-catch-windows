@@ -25,6 +25,7 @@ public sealed class AppCoordinator : IDisposable
     private bool _moveMode;
     private bool _disposed;
     private System.Windows.Controls.MenuItem? _keystrokeMenuItem;
+    private bool _wasDragging;
 
     // Bubble timers: userId -> list of (message, timer)
     private readonly Dictionary<string, List<(BubbleMessage Msg, DispatcherTimer Timer)>> _activeBubbles = new();
@@ -68,6 +69,7 @@ public sealed class AppCoordinator : IDisposable
             overlay.CoverScreen(screen);
             overlay.OnCatDragged = (x, y) =>
             {
+                _wasDragging = true;
                 (x, y) = ClampToScreen(x, y);
                 _localCat.AbsX = x;
                 _localCat.AbsY = y;
@@ -85,9 +87,9 @@ public sealed class AppCoordinator : IDisposable
             {
                 var peer = _room.Peers.FirstOrDefault(p => p.UserId == userId);
                 if (peer == null) return;
-                var screen2 = System.Windows.Forms.Screen.PrimaryScreen!;
-                peer.AbsX = Math.Clamp(x, screen2.Bounds.Left + 40, screen2.Bounds.Right - 40);
-                peer.AbsY = Math.Clamp(y, screen2.Bounds.Top + 40, screen2.Bounds.Bottom - 40);
+                (x, y) = ClampToScreen(x, y);
+                peer.AbsX = x;
+                peer.AbsY = y;
             };
             overlay.OnPeerDragEnd = _ => { };
             _overlayWindows.Add(overlay);
@@ -275,12 +277,36 @@ public sealed class AppCoordinator : IDisposable
         _inputMonitor.OnActivity += () =>
         {
             _lastActivity = DateTime.Now;
+            _localCat.IsSleeping = false;
             _localCat.IncrementKeystroke();
             _localCat.BumpCombo();
             _localCat.IsActive = !_localCat.IsActive;
             Application.Current.Dispatcher.Invoke(RefreshOverlays);
         };
+        _inputMonitor.OnLeftClick += (px, py) =>
+        {
+            Application.Current.Dispatcher.Invoke(() => HandleGlobalClick(px, py));
+        };
         _inputMonitor.Install();
+    }
+
+    private void HandleGlobalClick(int px, int py)
+    {
+        // Ignore if a drag just finished
+        if (_wasDragging)
+        {
+            _wasDragging = false;
+            return;
+        }
+
+        // Check if click is within local cat bounds (physical pixels)
+        const double hitSize = 80;
+        var dx = px - _localCat.AbsX;
+        var dy = py - _localCat.AbsY;
+        if (dx >= 0 && dx <= hitSize && dy >= 0 && dy <= hitSize)
+        {
+            ToggleChat();
+        }
     }
 
     private void SetupTimers()
@@ -294,10 +320,16 @@ public sealed class AppCoordinator : IDisposable
         _activityTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         _activityTimer.Tick += (_, _) =>
         {
-            if (_localCat.IsActive && (DateTime.Now - _lastActivity).TotalMilliseconds > 300)
+            var idleMs = (DateTime.Now - _lastActivity).TotalMilliseconds;
+            if (_localCat.IsActive && idleMs > 300)
             {
                 _localCat.IsActive = false;
                 SaveKeystrokeCount();
+                RefreshOverlays();
+            }
+            if (!_localCat.IsSleeping && _lastActivity != DateTime.MinValue && idleMs > 30_000)
+            {
+                _localCat.IsSleeping = true;
                 RefreshOverlays();
             }
         };
@@ -371,6 +403,8 @@ public sealed class AppCoordinator : IDisposable
                     }
                     // active 상태는 항상 반영
                     if (msg.Active.HasValue) peer2.IsActive = msg.Active.Value;
+                    // sleeping
+                    if (msg.Sleeping.HasValue) peer2.IsSleeping = msg.Sleeping.Value;
                     // combo
                     if (msg.Combo.HasValue)
                     {
@@ -472,7 +506,8 @@ public sealed class AppCoordinator : IDisposable
                     _localCat.IsActive, _localCat.Theme,
                     _localCat.Name, isLocal: true, showName: _localCat.ShowName,
                     bubbles: localBubbles, isChatOpen: _localCat.IsChatOpen,
-                    comboCount: _localCat.ComboCount, particles: _localCat.Particles);
+                    comboCount: _localCat.ComboCount, particles: _localCat.Particles,
+                    isSleeping: _localCat.IsSleeping);
             }
             else
             {
@@ -491,7 +526,8 @@ public sealed class AppCoordinator : IDisposable
                     peer.IsActive, peer.Theme,
                     peer.Name, isLocal: false,
                     bubbles: peerBubbles,
-                    comboCount: peer.ComboCount, particles: peer.Particles);
+                    comboCount: peer.ComboCount, particles: peer.Particles,
+                    isSleeping: peer.IsSleeping);
             }
         }
     }
@@ -512,6 +548,7 @@ public sealed class AppCoordinator : IDisposable
             Y = Math.Clamp(normY, 0, 1),
             Active = _localCat.IsActive,
             Combo = _localCat.PowerMode ? _localCat.ComboCount : null,
+            Sleeping = _localCat.IsSleeping ? true : null,
         });
     }
 
