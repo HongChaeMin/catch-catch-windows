@@ -35,21 +35,32 @@ public sealed class GlobalInputMonitor : IDisposable
             NativeMethods.WH_MOUSE_LL, _mouseProc, moduleHandle, 0);
     }
 
+    // IME/한영키 등 입력 언어 전환 키는 무시
+    private static bool IsImeKey(uint vkCode) => vkCode is
+        0x15 or   // VK_HANGUL (한영키)
+        0x19 or   // VK_HANJA (한자키)
+        0xE5 or   // VK_PROCESSKEY (IME 처리 중)
+        0x1F or   // VK_IME_ON
+        0x1A;     // VK_IME_OFF
+
     private IntPtr KeyboardHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
         if (nCode >= 0)
         {
             var kb = Marshal.PtrToStructure<NativeMethods.KBDLLHOOKSTRUCT>(lParam);
-            int msg = wParam.ToInt32();
 
-            if (msg == NativeMethods.WM_KEYDOWN || msg == NativeMethods.WM_SYSKEYDOWN)
+            if (!IsImeKey(kb.vkCode))
             {
-                if (_pressedKeys.Add(kb.vkCode))
-                    OnActivity?.Invoke();
-            }
-            else if (msg == NativeMethods.WM_KEYUP || msg == NativeMethods.WM_SYSKEYUP)
-            {
-                _pressedKeys.Remove(kb.vkCode);
+                int msg = wParam.ToInt32();
+                if (msg == NativeMethods.WM_KEYDOWN || msg == NativeMethods.WM_SYSKEYDOWN)
+                {
+                    if (_pressedKeys.Add(kb.vkCode))
+                        OnActivity?.Invoke();
+                }
+                else if (msg == NativeMethods.WM_KEYUP || msg == NativeMethods.WM_SYSKEYUP)
+                {
+                    _pressedKeys.Remove(kb.vkCode);
+                }
             }
         }
 
