@@ -36,6 +36,8 @@ public sealed class AppCoordinator : IDisposable
             Theme = CatThemeExtensions.FromWireString(Settings.Default.CatTheme),
             AbsX = Settings.Default.CatX > 0 ? Settings.Default.CatX : GetDefaultX(),
             AbsY = Settings.Default.CatY > 0 ? Settings.Default.CatY : GetDefaultY(),
+            ShowName = Settings.Default.ShowName,
+            SyncPosition = Settings.Default.SyncPosition,
         };
     }
 
@@ -108,6 +110,31 @@ public sealed class AppCoordinator : IDisposable
             themeMenu.Items.Add(item);
         }
 
+        // Show name toggle
+        var showNameItem = new System.Windows.Controls.MenuItem
+        {
+            Header = "Show Name", IsCheckable = true, IsChecked = _localCat.ShowName,
+        };
+        showNameItem.Click += (_, _) =>
+        {
+            _localCat.ShowName = showNameItem.IsChecked;
+            Settings.Default.ShowName = showNameItem.IsChecked;
+            Settings.Default.Save();
+            RefreshOverlays();
+        };
+
+        // Sync position toggle
+        var syncPosItem = new System.Windows.Controls.MenuItem
+        {
+            Header = "Sync Position", IsCheckable = true, IsChecked = _localCat.SyncPosition,
+        };
+        syncPosItem.Click += (_, _) =>
+        {
+            _localCat.SyncPosition = syncPosItem.IsChecked;
+            Settings.Default.SyncPosition = syncPosItem.IsChecked;
+            Settings.Default.Save();
+        };
+
         // Move toggle
         var moveItem = new System.Windows.Controls.MenuItem { Header = "Move Cat", IsCheckable = true };
         moveItem.Click += (_, _) => ToggleMoveMode(moveItem.IsChecked);
@@ -159,6 +186,8 @@ public sealed class AppCoordinator : IDisposable
         menu.Items.Add(new System.Windows.Controls.Separator());
         menu.Items.Add(themeMenu);
         menu.Items.Add(new System.Windows.Controls.Separator());
+        menu.Items.Add(showNameItem);
+        menu.Items.Add(syncPosItem);
         menu.Items.Add(moveItem);
         menu.Items.Add(chatItem);
         menu.Items.Add(new System.Windows.Controls.Separator());
@@ -371,7 +400,7 @@ public sealed class AppCoordinator : IDisposable
                 overlay.UpdateCat(
                     _localCat.UserId, _localCat.AbsX, _localCat.AbsY,
                     _localCat.IsActive, _localCat.Theme,
-                    _localCat.Name, isLocal: true,
+                    _localCat.Name, isLocal: true, showName: _localCat.ShowName,
                     bubbles: localBubbles, isChatOpen: _localCat.IsChatOpen);
             }
 
@@ -392,7 +421,7 @@ public sealed class AppCoordinator : IDisposable
 
     private async Task SendStateUpdate()
     {
-        if (!_room.IsConnected) return;
+        if (!_room.IsConnected || !_localCat.SyncPosition) return;
 
         var screen = System.Windows.Forms.Screen.PrimaryScreen!;
         var normX = (_localCat.AbsX - screen.Bounds.Left) / screen.Bounds.Width;

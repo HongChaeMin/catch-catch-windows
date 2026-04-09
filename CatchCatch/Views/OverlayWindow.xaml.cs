@@ -37,13 +37,18 @@ public partial class OverlayWindow : Window
         SetClickThrough(true);
     }
 
+    public double DpiScaleX { get; private set; } = 1.0;
+    public double DpiScaleY { get; private set; } = 1.0;
+
     public void CoverScreen(System.Windows.Forms.Screen screen)
     {
         var dpi = VisualTreeHelper.GetDpi(this);
-        Left = screen.Bounds.Left / dpi.DpiScaleX;
-        Top = screen.Bounds.Top / dpi.DpiScaleY;
-        Width = screen.Bounds.Width / dpi.DpiScaleX;
-        Height = screen.Bounds.Height / dpi.DpiScaleY;
+        DpiScaleX = dpi.DpiScaleX;
+        DpiScaleY = dpi.DpiScaleY;
+        Left = screen.Bounds.Left / DpiScaleX;
+        Top = screen.Bounds.Top / DpiScaleY;
+        Width = screen.Bounds.Width / DpiScaleX;
+        Height = screen.Bounds.Height / DpiScaleY;
     }
 
     public void SetClickThrough(bool transparent)
@@ -62,7 +67,8 @@ public partial class OverlayWindow : Window
     }
 
     public void UpdateCat(string userId, double x, double y, bool isActive, CatTheme theme,
-        string name, bool isLocal, List<BubbleMessage>? bubbles = null, bool isChatOpen = false)
+        string name, bool isLocal, bool showName = true,
+        List<BubbleMessage>? bubbles = null, bool isChatOpen = false)
     {
         if (!_catVisuals.TryGetValue(userId, out var visual))
         {
@@ -82,11 +88,12 @@ public partial class OverlayWindow : Window
 
         // Update name label
         visual.NameLabel.Text = name;
+        visual.NameBorder.Visibility = showName ? Visibility.Visible : Visibility.Collapsed;
         var nameOffset = isChatOpen ? 42.0 : 0.0;
 
-        // Position on canvas (x, y are absolute screen coords relative to this window)
-        var left = x - Left;
-        var top = y - Top;
+        // Convert physical pixel coords to DIPs for canvas positioning
+        var left = x / DpiScaleX - Left;
+        var top = y / DpiScaleY - Top;
         Canvas.SetLeft(visual.Container, left);
         Canvas.SetTop(visual.Container, top);
 
@@ -203,8 +210,9 @@ public partial class OverlayWindow : Window
         if (_isDragging)
         {
             var pos = e.GetPosition(OverlayCanvas);
-            var newX = pos.X - _dragOffset.X + Left;
-            var newY = pos.Y - _dragOffset.Y + Top;
+            // Convert DIP back to physical pixels for storage
+            var newX = (pos.X - _dragOffset.X + Left) * DpiScaleX;
+            var newY = (pos.Y - _dragOffset.Y + Top) * DpiScaleY;
             OnCatDragged?.Invoke(newX, newY);
         }
         base.OnMouseMove(e);
@@ -217,8 +225,8 @@ public partial class OverlayWindow : Window
             _isDragging = false;
             ReleaseMouseCapture();
             var pos = e.GetPosition(OverlayCanvas);
-            var newX = pos.X - _dragOffset.X + Left;
-            var newY = pos.Y - _dragOffset.Y + Top;
+            var newX = (pos.X - _dragOffset.X + Left) * DpiScaleX;
+            var newY = (pos.Y - _dragOffset.Y + Top) * DpiScaleY;
             OnCatDragEnd?.Invoke(newX, newY);
         }
         base.OnMouseLeftButtonUp(e);

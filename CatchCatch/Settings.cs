@@ -41,4 +41,20 @@ internal sealed class Settings : ApplicationSettingsBase
         get => (double)this[nameof(CatY)];
         set => this[nameof(CatY)] = value;
     }
+
+    [UserScopedSetting]
+    [DefaultSettingValue("True")]
+    public bool ShowName
+    {
+        get => (bool)this[nameof(ShowName)];
+        set => this[nameof(ShowName)] = value;
+    }
+
+    [UserScopedSetting]
+    [DefaultSettingValue("True")]
+    public bool SyncPosition
+    {
+        get => (bool)this[nameof(SyncPosition)];
+        set => this[nameof(SyncPosition)] = value;
+    }
 }

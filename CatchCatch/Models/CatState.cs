@@ -11,6 +11,8 @@ public class CatState : INotifyPropertyChanged
     private string _name = "Anonymous";
     private CatTheme _theme = CatTheme.Cat;
     private bool _isChatOpen;
+    private bool _showName = true;
+    private bool _syncPosition = true;
 
     public string UserId { get; }
 
@@ -48,6 +50,18 @@ public class CatState : INotifyPropertyChanged
     {
         get => _isChatOpen;
         set => SetField(ref _isChatOpen, value);
+    }
+
+    public bool ShowName
+    {
+        get => _showName;
+        set => SetField(ref _showName, value);
+    }
+
+    public bool SyncPosition
+    {
+        get => _syncPosition;
+        set => SetField(ref _syncPosition, value);
     }
 
     public CatState(string userId)
