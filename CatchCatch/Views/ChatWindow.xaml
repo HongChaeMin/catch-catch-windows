@@ -1,0 +1,38 @@
+<Window x:Class="CatchCatch.Views.ChatWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        Width="220" Height="36"
+        Deactivated="Window_Deactivated">
+    <Border Background="#E0333333" CornerRadius="8" Padding="4">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="ChatInput"
+                     Background="Transparent"
+                     Foreground="White"
+                     CaretBrush="White"
+                     BorderThickness="0"
+                     FontSize="13"
+                     VerticalContentAlignment="Center"
+                     MaxLength="500"
+                     KeyDown="ChatInput_KeyDown" />
+            <Button Grid.Column="1"
+                    Content="&#x27A4;"
+                    Background="Transparent"
+                    Foreground="#90FFFFFF"
+                    BorderThickness="0"
+                    FontSize="14"
+                    Cursor="Hand"
+                    Padding="6,0"
+                    Click="SendButton_Click" />
+        </Grid>
+    </Border>
+</Window>
