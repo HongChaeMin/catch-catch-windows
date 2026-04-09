@@ -31,12 +31,16 @@ public sealed class AppCoordinator : IDisposable
 
     public AppCoordinator()
     {
+        var initX = Settings.Default.CatX > 0 ? Settings.Default.CatX : GetDefaultX();
+        var initY = Settings.Default.CatY > 0 ? Settings.Default.CatY : GetDefaultY();
+        (initX, initY) = ClampToScreen(initX, initY);
+
         _localCat = new CatState(Guid.NewGuid().ToString("N")[..8])
         {
             Name = Settings.Default.CatName.Length > 0 ? Settings.Default.CatName : "Anonymous",
             Theme = CatThemeExtensions.FromWireString(Settings.Default.CatTheme),
-            AbsX = Settings.Default.CatX > 0 ? Settings.Default.CatX : GetDefaultX(),
-            AbsY = Settings.Default.CatY > 0 ? Settings.Default.CatY : GetDefaultY(),
+            AbsX = initX,
+            AbsY = initY,
             ShowName = Settings.Default.ShowName,
             SyncPosition = Settings.Default.SyncPosition,
             KeystrokeCount = LoadKeystrokeCount(),
@@ -63,12 +67,14 @@ public sealed class AppCoordinator : IDisposable
             overlay.CoverScreen(screen);
             overlay.OnCatDragged = (x, y) =>
             {
+                (x, y) = ClampToScreen(x, y);
                 _localCat.AbsX = x;
                 _localCat.AbsY = y;
                 RefreshOverlays();
             };
             overlay.OnCatDragEnd = (x, y) =>
             {
+                (x, y) = ClampToScreen(x, y);
                 _localCat.AbsX = x;
                 _localCat.AbsY = y;
                 SavePosition();
@@ -467,14 +473,16 @@ public sealed class AppCoordinator : IDisposable
     private double NormToAbsX(double norm)
     {
         var screen = System.Windows.Forms.Screen.PrimaryScreen!;
-        return screen.Bounds.Left + norm * screen.Bounds.Width;
+        var x = screen.Bounds.Left + norm * screen.Bounds.Width;
+        return Math.Clamp(x, screen.Bounds.Left + 40, screen.Bounds.Right - 40);
     }
 
     private double NormToAbsY(double norm)
     {
         var screen = System.Windows.Forms.Screen.PrimaryScreen!;
         // Y flip: server coordinates use macOS convention (1.0-y)
-        return screen.Bounds.Top + (1.0 - norm) * screen.Bounds.Height;
+        var y = screen.Bounds.Top + (1.0 - norm) * screen.Bounds.Height;
+        return Math.Clamp(y, screen.Bounds.Top + 40, screen.Bounds.Bottom - 40);
     }
 
     private void ToggleMoveMode(bool enable)
@@ -603,6 +611,15 @@ public sealed class AppCoordinator : IDisposable
         Settings.Default.CatX = _localCat.AbsX;
         Settings.Default.CatY = _localCat.AbsY;
         Settings.Default.Save();
+    }
+
+    private static (double x, double y) ClampToScreen(double x, double y)
+    {
+        var screen = System.Windows.Forms.Screen.PrimaryScreen!;
+        const double margin = 40; // half cat size
+        var clampedX = Math.Clamp(x, screen.Bounds.Left + margin, screen.Bounds.Right - margin);
+        var clampedY = Math.Clamp(y, screen.Bounds.Top + margin, screen.Bounds.Bottom - margin);
+        return (clampedX, clampedY);
     }
 
     private static double GetDefaultX()
