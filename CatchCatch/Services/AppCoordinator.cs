@@ -22,10 +22,14 @@ public sealed class AppCoordinator : IDisposable
     private DispatcherTimer? _stateTimer;
     private DispatcherTimer? _activityTimer;
     private DateTime _lastActivity = DateTime.MinValue;
-    private bool _moveMode;
     private bool _disposed;
     private System.Windows.Controls.MenuItem? _keystrokeMenuItem;
-    private bool _wasDragging;
+
+    // Global-hook drag state
+    private bool _isDragging;
+    private double _dragStartX, _dragStartY;
+    private double _dragOffsetX, _dragOffsetY;
+    private CatState? _dragTarget; // null = not dragging
 
     // Bubble timers: userId -> list of (message, timer)
     private readonly Dictionary<string, List<(BubbleMessage Msg, DispatcherTimer Timer)>> _activeBubbles = new();
@@ -67,31 +71,6 @@ public sealed class AppCoordinator : IDisposable
             var overlay = new OverlayWindow();
             overlay.Show();
             overlay.CoverScreen(screen);
-            overlay.OnCatDragged = (x, y) =>
-            {
-                _wasDragging = true;
-                (x, y) = ClampToScreen(x, y);
-                _localCat.AbsX = x;
-                _localCat.AbsY = y;
-                RefreshOverlays();
-            };
-            overlay.OnCatDragEnd = (x, y) =>
-            {
-                (x, y) = ClampToScreen(x, y);
-                _localCat.AbsX = x;
-                _localCat.AbsY = y;
-                SavePosition();
-                RefreshOverlays();
-            };
-            overlay.OnPeerDragged = (userId, x, y) =>
-            {
-                var peer = _room.Peers.FirstOrDefault(p => p.UserId == userId);
-                if (peer == null) return;
-                (x, y) = ClampToScreen(x, y);
-                peer.AbsX = x;
-                peer.AbsY = y;
-            };
-            overlay.OnPeerDragEnd = _ => { };
             _overlayWindows.Add(overlay);
         }
 
@@ -190,10 +169,6 @@ public sealed class AppCoordinator : IDisposable
             }
         };
 
-        // Move toggle
-        var moveItem = new System.Windows.Controls.MenuItem { Header = "Move Cat", IsCheckable = true };
-        moveItem.Click += (_, _) => ToggleMoveMode(moveItem.IsChecked);
-
         // Room
         var roomHeader = new System.Windows.Controls.MenuItem { Header = "Room: Not connected", IsEnabled = false };
         var joinItem = new System.Windows.Controls.MenuItem { Header = "Join Room..." };
@@ -246,7 +221,6 @@ public sealed class AppCoordinator : IDisposable
         menu.Items.Add(showNameItem);
         menu.Items.Add(syncPosItem);
         menu.Items.Add(powerModeItem);
-        menu.Items.Add(moveItem);
         menu.Items.Add(chatItem);
         menu.Items.Add(new System.Windows.Controls.Separator());
         menu.Items.Add(roomHeader);
@@ -283,30 +257,89 @@ public sealed class AppCoordinator : IDisposable
             _localCat.IsActive = !_localCat.IsActive;
             Application.Current.Dispatcher.Invoke(RefreshOverlays);
         };
+        _inputMonitor.OnLeftDown += (px, py) =>
+        {
+            Application.Current.Dispatcher.Invoke(() => HandleGlobalLeftDown(px, py));
+        };
+        _inputMonitor.OnMouseMove += (px, py) =>
+        {
+            if (_isDragging)
+                Application.Current.Dispatcher.Invoke(() => HandleGlobalMouseMove(px, py));
+        };
         _inputMonitor.OnLeftClick += (px, py) =>
         {
-            Application.Current.Dispatcher.Invoke(() => HandleGlobalClick(px, py));
+            Application.Current.Dispatcher.Invoke(() => HandleGlobalLeftUp(px, py));
         };
         _inputMonitor.Install();
     }
 
-    private void HandleGlobalClick(int px, int py)
+    private CatState? HitTestCat(int px, int py)
     {
-        // Ignore if a drag just finished
-        if (_wasDragging)
-        {
-            _wasDragging = false;
-            return;
-        }
-
-        // Check if click is within local cat bounds (physical pixels)
         const double hitSize = 80;
+
         var dx = px - _localCat.AbsX;
         var dy = py - _localCat.AbsY;
         if (dx >= 0 && dx <= hitSize && dy >= 0 && dy <= hitSize)
+            return _localCat;
+
+        foreach (var peer in _room.Peers)
         {
-            ToggleChat();
+            dx = px - peer.AbsX;
+            dy = py - peer.AbsY;
+            if (dx >= 0 && dx <= hitSize && dy >= 0 && dy <= hitSize)
+                return peer;
         }
+
+        return null;
+    }
+
+    private void HandleGlobalLeftDown(int px, int py)
+    {
+        var hit = HitTestCat(px, py);
+        if (hit == null) return;
+
+        _isDragging = true;
+        _dragTarget = hit;
+        _dragStartX = px;
+        _dragStartY = py;
+        _dragOffsetX = px - hit.AbsX;
+        _dragOffsetY = py - hit.AbsY;
+    }
+
+    private void HandleGlobalMouseMove(int px, int py)
+    {
+        if (!_isDragging || _dragTarget == null) return;
+
+        var (newX, newY) = ClampToScreen(px - _dragOffsetX, py - _dragOffsetY);
+        _dragTarget.AbsX = newX;
+        _dragTarget.AbsY = newY;
+        RefreshOverlays();
+    }
+
+    private void HandleGlobalLeftUp(int px, int py)
+    {
+        if (!_isDragging)
+        {
+            if (HitTestCat(px, py) == _localCat)
+                ToggleChat();
+            return;
+        }
+
+        var movedDist = Math.Sqrt(
+            Math.Pow(px - _dragStartX, 2) + Math.Pow(py - _dragStartY, 2));
+
+        if (movedDist < 5)
+        {
+            if (_dragTarget == _localCat)
+                ToggleChat();
+        }
+        else if (_dragTarget == _localCat)
+        {
+            SavePosition();
+        }
+
+        _isDragging = false;
+        _dragTarget = null;
     }
 
     private void SetupTimers()
@@ -565,13 +598,6 @@ public sealed class AppCoordinator : IDisposable
         // Y flip: server coordinates use macOS convention (1.0-y)
         var y = screen.Bounds.Top + (1.0 - norm) * screen.Bounds.Height;
         return Math.Clamp(y, screen.Bounds.Top + 40, screen.Bounds.Bottom - 40);
-    }
-
-    private void ToggleMoveMode(bool enable)
-    {
-        _moveMode = enable;
-        foreach (var overlay in _overlayWindows)
-            overlay.EnableDrag(enable);
     }
 
     private void ToggleChat()

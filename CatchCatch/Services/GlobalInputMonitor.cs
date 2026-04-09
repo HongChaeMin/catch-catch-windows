@@ -15,7 +15,9 @@ public sealed class GlobalInputMonitor : IDisposable
 
     public event Action? OnActivity;
     public event Action? OnAllKeysReleased;
+    public event Action<int, int>? OnLeftDown;
     public event Action<int, int>? OnLeftClick;
+    public event Action<int, int>? OnMouseMove;
 
     public GlobalInputMonitor()
     {
@@ -79,10 +81,19 @@ public sealed class GlobalInputMonitor : IDisposable
                 OnActivity?.Invoke();
             }
 
-            if (msg is NativeMethods.WM_LBUTTONUP)
+            // Unmarshal once for all mouse position events
+            if (msg is NativeMethods.WM_LBUTTONDOWN or NativeMethods.WM_LBUTTONUP
+                or NativeMethods.WM_MOUSEMOVE)
             {
                 var ms = Marshal.PtrToStructure<NativeMethods.MSLLHOOKSTRUCT>(lParam);
-                OnLeftClick?.Invoke(ms.pt.x, ms.pt.y);
+                var (x, y) = (ms.pt.x, ms.pt.y);
+
+                if (msg is NativeMethods.WM_LBUTTONDOWN)
+                    OnLeftDown?.Invoke(x, y);
+                else if (msg is NativeMethods.WM_MOUSEMOVE)
+                    OnMouseMove?.Invoke(x, y);
+                else
+                    OnLeftClick?.Invoke(x, y);
             }
         }
 

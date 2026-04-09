@@ -22,16 +22,6 @@ public partial class OverlayWindow : Window
 
     private readonly Dictionary<string, CatVisual> _catVisuals = new();
     private readonly DispatcherTimer _particleTimer;
-    private bool _clickThrough = true;
-    private bool _isDragging;
-    private Point _dragOffset;
-    private string? _draggingUserId;
-
-    public Action<double, double>? OnCatDragged;
-    public Action<double, double>? OnCatDragEnd;
-    public Action<string, double, double>? OnPeerDragged;
-    public Action<string>? OnPeerDragEnd;
-    public Action<string>? OnCatClicked;
 
     public OverlayWindow()
     {
@@ -64,7 +54,6 @@ public partial class OverlayWindow : Window
 
     public void SetClickThrough(bool transparent)
     {
-        _clickThrough = transparent;
         var hwnd = new WindowInteropHelper(this).Handle;
         if (hwnd == IntPtr.Zero) return;
 
@@ -150,11 +139,11 @@ public partial class OverlayWindow : Window
         // Update bubbles
         UpdateBubbles(visual, left, top, bubbles);
 
-        // Handle drag for local cat
-        if (isLocal && !visual.DragSetup)
+        // Set hand cursor for local cat
+        if (isLocal && !visual.CursorSet)
         {
             visual.CatImage.Cursor = Cursors.Hand;
-            visual.DragSetup = true;
+            visual.CursorSet = true;
         }
     }
 
@@ -304,87 +293,6 @@ public partial class OverlayWindow : Window
         _ => Colors.White,
     };
 
-    public void EnableDrag(bool enable)
-    {
-        SetClickThrough(!enable);
-    }
-
-    protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
-    {
-        if (!_clickThrough)
-        {
-            var pos = e.GetPosition(OverlayCanvas);
-            foreach (var (userId, visual) in _catVisuals)
-            {
-                var catLeft = Canvas.GetLeft(visual.Container);
-                var catTop = Canvas.GetTop(visual.Container);
-                if (pos.X >= catLeft && pos.X <= catLeft + CatSize &&
-                    pos.Y >= catTop && pos.Y <= catTop + CatSize)
-                {
-                    _isDragging = true;
-                    _draggingUserId = visual.DragSetup ? null : userId;
-                    _dragOffset = new Point(pos.X - catLeft, pos.Y - catTop);
-                    CaptureMouse();
-                    break;
-                }
-            }
-        }
-        base.OnMouseLeftButtonDown(e);
-    }
-
-    protected override void OnMouseMove(MouseEventArgs e)
-    {
-        if (_isDragging)
-        {
-            var pos = e.GetPosition(OverlayCanvas);
-            if (_draggingUserId != null)
-            {
-                // Peer cat: update position in DIPs directly on canvas
-                if (_catVisuals.TryGetValue(_draggingUserId, out var visual))
-                {
-                    var newLeft = pos.X - _dragOffset.X;
-                    var newTop = pos.Y - _dragOffset.Y;
-                    Canvas.SetLeft(visual.Container, newLeft);
-                    Canvas.SetTop(visual.Container, newTop);
-                    Canvas.SetLeft(visual.NameBorder, newLeft + (CatSize - visual.NameBorder.ActualWidth) / 2);
-                    Canvas.SetTop(visual.NameBorder, newTop + CatSize + 2);
-                    var absX = (newLeft + Left) * DpiScaleX;
-                    var absY = (newTop + Top) * DpiScaleY;
-                    OnPeerDragged?.Invoke(_draggingUserId, absX, absY);
-                }
-            }
-            else
-            {
-                // Local cat: convert DIP back to physical pixels
-                var newX = (pos.X - _dragOffset.X + Left) * DpiScaleX;
-                var newY = (pos.Y - _dragOffset.Y + Top) * DpiScaleY;
-                OnCatDragged?.Invoke(newX, newY);
-            }
-        }
-        base.OnMouseMove(e);
-    }
-
-    protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
-    {
-        if (_isDragging)
-        {
-            _isDragging = false;
-            ReleaseMouseCapture();
-            if (_draggingUserId != null)
-            {
-                OnPeerDragEnd?.Invoke(_draggingUserId);
-                _draggingUserId = null;
-            }
-            else
-            {
-                var pos = e.GetPosition(OverlayCanvas);
-                var newX = (pos.X - _dragOffset.X + Left) * DpiScaleX;
-                var newY = (pos.Y - _dragOffset.Y + Top) * DpiScaleY;
-                OnCatDragEnd?.Invoke(newX, newY);
-            }
-        }
-        base.OnMouseLeftButtonUp(e);
-    }
 
     private class CatVisual
     {
@@ -400,7 +308,7 @@ public partial class OverlayWindow : Window
         public List<Particle>? Particles { get; set; }
         public double CatLeft { get; set; }
         public double CatTop { get; set; }
-        public bool DragSetup { get; set; }
+        public bool CursorSet { get; set; }
 
         public CatVisual()
         {
