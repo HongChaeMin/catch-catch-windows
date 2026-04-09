@@ -264,10 +264,11 @@ public partial class OverlayWindow : Window
 
     private static Color GetComboColor(int combo) => combo switch
     {
-        >= 50 => Colors.Red,
-        >= 25 => Colors.Orange,
-        >= 10 => Color.FromRgb(77, 255, 128),  // green
-        _ => Color.FromRgb(77, 230, 255),       // cyan
+        >= 150 => Color.FromRgb(255, 77, 179),   // pink
+        >= 100 => Colors.Red,
+        >= 60 => Colors.Orange,
+        >= 30 => Color.FromRgb(77, 255, 128),    // green
+        _ => Color.FromRgb(77, 230, 255),         // cyan
     };
 
     private static Color GetParticleColor(string color) => color switch

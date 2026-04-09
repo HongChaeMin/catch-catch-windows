@@ -102,23 +102,25 @@ public class CatState : INotifyPropertyChanged
 
     private static readonly string[][] ColorPools =
     {
-        new[] { "Cyan", "Blue", "White" },      // 0-9
-        new[] { "Green", "Cyan", "Yellow" },     // 10-24
-        new[] { "Yellow", "Orange", "Pink" },    // 25-49
-        new[] { "Red", "Orange", "Pink" },       // 50+
+        new[] { "Cyan", "Blue", "White" },       // 0-29
+        new[] { "Green", "Cyan", "Yellow" },      // 30-59
+        new[] { "Yellow", "Orange", "Pink" },     // 60-99
+        new[] { "Orange", "Red", "Pink" },        // 100-149
+        new[] { "Red", "Pink", "Orange" },        // 150+
     };
 
     public string ComboColor => ComboCount switch
     {
-        >= 50 => "Red",
-        >= 25 => "Orange",
-        >= 10 => "Green",
+        >= 150 => "Pink",
+        >= 100 => "Red",
+        >= 60 => "Orange",
+        >= 30 => "Green",
         _ => "Cyan",
     };
 
     private static string RandomColorForTier(int combo)
     {
-        var pool = combo >= 50 ? ColorPools[3] : combo >= 25 ? ColorPools[2] : combo >= 10 ? ColorPools[1] : ColorPools[0];
+        var pool = combo >= 150 ? ColorPools[4] : combo >= 100 ? ColorPools[3] : combo >= 60 ? ColorPools[2] : combo >= 30 ? ColorPools[1] : ColorPools[0];
         return pool[Rng.Next(pool.Length)];
     }
 
