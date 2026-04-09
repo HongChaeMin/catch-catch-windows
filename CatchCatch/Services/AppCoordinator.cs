@@ -277,9 +277,19 @@ public sealed class AppCoordinator : IDisposable
             _lastActivity = DateTime.Now;
             _localCat.IncrementKeystroke();
             _localCat.BumpCombo();
-            // 매 키입력마다 토글 → 팔 파닥파닥 (macOS와 동일)
-            _localCat.IsActive = !_localCat.IsActive;
-            Application.Current.Dispatcher.Invoke(RefreshOverlays);
+            if (!_localCat.IsActive)
+            {
+                _localCat.IsActive = true;
+                Application.Current.Dispatcher.Invoke(RefreshOverlays);
+            }
+        };
+        _inputMonitor.OnAllKeysReleased += () =>
+        {
+            if (_localCat.IsActive)
+            {
+                _localCat.IsActive = false;
+                Application.Current.Dispatcher.Invoke(RefreshOverlays);
+            }
         };
         _inputMonitor.Install();
     }

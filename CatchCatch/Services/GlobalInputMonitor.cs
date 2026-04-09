@@ -14,8 +14,7 @@ public sealed class GlobalInputMonitor : IDisposable
     private bool _disposed;
 
     public event Action? OnActivity;
-
-    public bool IsAnyKeyPressed => _pressedKeys.Count > 0;
+    public event Action? OnAllKeysReleased;
 
     public GlobalInputMonitor()
     {
@@ -55,11 +54,13 @@ public sealed class GlobalInputMonitor : IDisposable
                 if (msg == NativeMethods.WM_KEYDOWN || msg == NativeMethods.WM_SYSKEYDOWN)
                 {
                     _pressedKeys.Add(kb.vkCode);
-                    OnActivity?.Invoke();  // 반복 키도 포함 → 팔 파닥파닥
+                    OnActivity?.Invoke();
                 }
                 else if (msg == NativeMethods.WM_KEYUP || msg == NativeMethods.WM_SYSKEYUP)
                 {
                     _pressedKeys.Remove(kb.vkCode);
+                    if (_pressedKeys.Count == 0)
+                        OnAllKeysReleased?.Invoke();
                 }
             }
         }
