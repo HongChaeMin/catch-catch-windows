@@ -256,6 +256,7 @@ public sealed class AppCoordinator : IDisposable
             _localCat.BumpCombo();
             _localCat.IsActive = !_localCat.IsActive;
             Application.Current.Dispatcher.Invoke(RefreshOverlays);
+            SendStateDebounced();
         };
         _inputMonitor.OnLeftDown += (px, py) =>
         {
@@ -344,10 +345,13 @@ public sealed class AppCoordinator : IDisposable
 
     private void SetupTimers()
     {
-        // State sync timer (100ms = 10Hz)
+        // State sync debounce timer (fires once 100ms after last input)
         _stateTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
-        _stateTimer.Tick += async (_, _) => await SendStateUpdate();
-        _stateTimer.Start();
+        _stateTimer.Tick += async (_, _) =>
+        {
+            _stateTimer.Stop();
+            await SendStateUpdate();
+        };
 
         // Sleep detection timer
         _activityTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
@@ -557,6 +561,15 @@ public sealed class AppCoordinator : IDisposable
                     isSleeping: peer.IsSleeping);
             }
         }
+    }
+
+    private void SendStateDebounced()
+    {
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            _stateTimer?.Stop();
+            _stateTimer?.Start();
+        });
     }
 
     private async Task SendStateUpdate()
