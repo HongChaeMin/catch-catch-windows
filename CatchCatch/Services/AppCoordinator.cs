@@ -604,16 +604,14 @@ public sealed class AppCoordinator : IDisposable
     private double NormToAbsX(double norm)
     {
         var screen = System.Windows.Forms.Screen.PrimaryScreen!;
-        var x = screen.Bounds.Left + norm * screen.Bounds.Width;
-        return Math.Clamp(x, screen.Bounds.Left + 40, screen.Bounds.Right - 40);
+        return screen.Bounds.Left + norm * screen.Bounds.Width;
     }
 
     private double NormToAbsY(double norm)
     {
         var screen = System.Windows.Forms.Screen.PrimaryScreen!;
         // Y flip: server coordinates use macOS convention (1.0-y)
-        var y = screen.Bounds.Top + (1.0 - norm) * screen.Bounds.Height;
-        return Math.Clamp(y, screen.Bounds.Top + 40, screen.Bounds.Bottom - 40);
+        return screen.Bounds.Top + (1.0 - norm) * screen.Bounds.Height;
     }
 
     private void ToggleChat()
