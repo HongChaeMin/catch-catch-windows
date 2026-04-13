@@ -55,6 +55,7 @@ public sealed class AppCoordinator : IDisposable
 
     public void Start()
     {
+        _localCat.OnComboReset = SendStateDebounced;
         SetupOverlays();
         SetupTrayIcon();
         SetupInputMonitor();
@@ -362,6 +363,7 @@ public sealed class AppCoordinator : IDisposable
             {
                 _localCat.IsSleeping = true;
                 RefreshOverlays();
+                SendStateDebounced();
             }
         };
         _activityTimer.Start();

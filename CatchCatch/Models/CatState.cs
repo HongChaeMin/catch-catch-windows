@@ -30,6 +30,7 @@ public class CatState : INotifyPropertyChanged
     private bool _powerMode = true;
     private bool _isSleeping;
     private DispatcherTimer? _comboResetTimer;
+    public Action? OnComboReset;
 
     public string UserId { get; }
 
@@ -150,6 +151,7 @@ public class CatState : INotifyPropertyChanged
                 _comboResetTimer.Stop();
                 ComboCount = 0;
                 Particles.Clear();
+                OnComboReset?.Invoke();
             };
         }
         _comboResetTimer.Stop();
