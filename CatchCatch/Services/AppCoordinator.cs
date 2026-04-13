@@ -574,17 +574,20 @@ public sealed class AppCoordinator : IDisposable
 
     private async Task SendStateUpdate()
     {
-        if (!_room.IsConnected || !_localCat.SyncPosition) return;
+        if (!_room.IsConnected) return;
 
-        var screen = System.Windows.Forms.Screen.PrimaryScreen!;
-        var normX = (_localCat.AbsX - screen.Bounds.Left) / screen.Bounds.Width;
-        // Y flip: macOS sends 1.0-y (Y-up system), Windows must match
-        var normY = 1.0 - (_localCat.AbsY - screen.Bounds.Top) / screen.Bounds.Height;
+        double? normX = null, normY = null;
+        if (_localCat.SyncPosition)
+        {
+            var screen = System.Windows.Forms.Screen.PrimaryScreen!;
+            normX = (_localCat.AbsX - screen.Bounds.Left) / screen.Bounds.Width;
+            normY = 1.0 - (_localCat.AbsY - screen.Bounds.Top) / screen.Bounds.Height;
+        }
 
         await _wsClient.SendAsync(new WsMessage
         {
             Type = "state",
-            X = normX,   // 클램핑 없음 — 멀티모니터 좌표 보존
+            X = normX,
             Y = normY,
             Active = _localCat.IsActive,
             Combo = _localCat.PowerMode ? _localCat.ComboCount : null,
