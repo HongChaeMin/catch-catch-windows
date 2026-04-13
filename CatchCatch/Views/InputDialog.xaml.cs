@@ -13,7 +13,12 @@ public partial class InputDialog : Window
         Title = title;
         PromptText.Text = prompt;
         InputBox.Text = defaultValue;
-        Loaded += (_, _) => { InputBox.Focus(); InputBox.SelectAll(); };
+        Loaded += (_, _) =>
+        {
+            Activate();
+            InputBox.Focus();
+            InputBox.SelectAll();
+        };
     }
 
     public static string? Show(string prompt, string title, string defaultValue = "")

@@ -5,7 +5,8 @@
         Width="320" Height="150"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
-        ShowInTaskbar="False">
+        Topmost="True"
+        ShowInTaskbar="True">
     <StackPanel Margin="16">
         <TextBlock x:Name="PromptText" Text="Enter value:" Margin="0,0,0,8" />
         <TextBox x:Name="InputBox" Margin="0,0,0,12" KeyDown="InputBox_KeyDown" />
