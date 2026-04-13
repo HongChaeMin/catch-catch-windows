@@ -55,7 +55,11 @@ public sealed class AppCoordinator : IDisposable
 
     public void Start()
     {
-        _localCat.OnComboReset = SendStateDebounced;
+        _localCat.OnComboReset = () =>
+        {
+            RefreshOverlays();
+            SendStateDebounced();
+        };
         SetupOverlays();
         SetupTrayIcon();
         SetupInputMonitor();
