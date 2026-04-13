@@ -11,8 +11,6 @@
             <MenuItem x:Name="ThemeCat3" Header="Calico Cat" IsCheckable="True" />
         </MenuItem>
         <Separator />
-        <MenuItem x:Name="MenuMove" Header="Move Cat" IsCheckable="True" />
-        <Separator />
         <MenuItem x:Name="MenuRoom" Header="Room" IsEnabled="False" />
         <MenuItem x:Name="MenuJoin" Header="Join Room..." />
         <MenuItem x:Name="MenuLeave" Header="Leave Room" IsEnabled="False" />

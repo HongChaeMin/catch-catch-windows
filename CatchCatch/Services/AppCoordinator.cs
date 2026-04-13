@@ -349,17 +349,11 @@ public sealed class AppCoordinator : IDisposable
         _stateTimer.Tick += async (_, _) => await SendStateUpdate();
         _stateTimer.Start();
 
-        // Activity decay timer
-        _activityTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+        // Sleep detection timer
+        _activityTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         _activityTimer.Tick += (_, _) =>
         {
             var idleMs = (DateTime.Now - _lastActivity).TotalMilliseconds;
-            if (_localCat.IsActive && idleMs > 300)
-            {
-                _localCat.IsActive = false;
-                SaveKeystrokeCount();
-                RefreshOverlays();
-            }
             if (!_localCat.IsSleeping && _lastActivity != DateTime.MinValue && idleMs > 30_000)
             {
                 _localCat.IsSleeping = true;
@@ -577,8 +571,8 @@ public sealed class AppCoordinator : IDisposable
         await _wsClient.SendAsync(new WsMessage
         {
             Type = "state",
-            X = Math.Clamp(normX, 0, 1),
-            Y = Math.Clamp(normY, 0, 1),
+            X = normX,   // 클램핑 없음 — 멀티모니터 좌표 보존
+            Y = normY,
             Active = _localCat.IsActive,
             Combo = _localCat.PowerMode ? _localCat.ComboCount : null,
             Sleeping = _localCat.IsSleeping ? true : null,
