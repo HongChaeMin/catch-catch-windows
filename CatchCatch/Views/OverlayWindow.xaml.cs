@@ -22,6 +22,7 @@ public partial class OverlayWindow : Window
 
     private readonly Dictionary<string, CatVisual> _catVisuals = new();
     private readonly DispatcherTimer _particleTimer;
+    private readonly DispatcherTimer _topmostTimer;
 
     public OverlayWindow()
     {
@@ -31,11 +32,28 @@ public partial class OverlayWindow : Window
         _particleTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) }; // ~60fps
         _particleTimer.Tick += OnParticleTick;
         _particleTimer.Start();
+
+        // WPF Topmost is unreliable: fullscreen apps, UAC, other topmost windows
+        // can bury the overlay. Re-assert via SetWindowPos(HWND_TOPMOST) every 500ms.
+        _topmostTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        _topmostTimer.Tick += (_, _) => ReassertTopmost();
+        _topmostTimer.Start();
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         SetClickThrough(true);
+        ReassertTopmost();
+    }
+
+    private void ReassertTopmost()
+    {
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero) return;
+        NativeMethods.SetWindowPos(
+            hwnd, NativeMethods.HWND_TOPMOST,
+            0, 0, 0, 0,
+            NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
     }
 
     public double DpiScaleX { get; private set; } = 1.0;

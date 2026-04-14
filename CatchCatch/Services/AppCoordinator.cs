@@ -678,13 +678,15 @@ public sealed class AppCoordinator : IDisposable
     {
         await _wsClient.DisconnectAsync();
         _room.IsConnected = false;
+
+        var leavingPeerIds = _room.Peers.Select(p => p.UserId).ToList();
         _room.Peers.Clear();
         _room.RoomCode = "";
 
         foreach (var overlay in _overlayWindows)
         {
-            foreach (var peer in _room.Peers)
-                overlay.RemoveCat(peer.UserId);
+            foreach (var id in leavingPeerIds)
+                overlay.RemoveCat(id);
         }
 
         RefreshOverlays();

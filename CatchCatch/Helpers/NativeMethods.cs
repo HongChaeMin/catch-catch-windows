@@ -15,6 +15,17 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     public static extern int SetWindowLong(IntPtr hwnd, int index, int newStyle);
 
+    // Topmost re-assertion
+    public static readonly IntPtr HWND_TOPMOST = new(-1);
+    public const uint SWP_NOSIZE = 0x0001;
+    public const uint SWP_NOMOVE = 0x0002;
+    public const uint SWP_NOACTIVATE = 0x0010;
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter,
+        int X, int Y, int cx, int cy, uint uFlags);
+
     // Low-level hooks
     public const int WH_KEYBOARD_LL = 13;
     public const int WH_MOUSE_LL = 14;
